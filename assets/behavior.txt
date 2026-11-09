@@ -1,0 +1,22 @@
+# Qué hace cada pieza de tiles.png (ids de tiles_numerado.png). Las líneas de abajo pisan a las de arriba.
+#   block = no se puede pisar | ledge = saliente (se cruza saltando hacia abajo) | walk = caminable
+# Se pueden usar: ids sueltos (40), rangos (100-120), rectángulos rect:col1,fila1,col2,fila2 y "water".
+
+block water                 # agua (detección automática por color)
+block rect:11,0,13,12       # árboles grandes de la hoja
+block rect:11,16,14,18      # Arbol
+
+block rect:5,11,7,13
+block 467 468 125 159 192
+
+block rect:23,23,27,27  #casa
+
+
+ledge 137-139
+ledge 269-271
+
+# Ejemplos para ir completando (descomenta y ajusta mirando behavior_preview.png):
+# block 7 40 402            # arbusto, árbol chico, matorral
+# block rect:23,14,26,18    # tienda / centro pokémon
+# block rect:11,16,12,18    # Arbol
+# ledge 581-582             # salientes: busca en tiles_numerado.png las piezas con el "labio" del salto

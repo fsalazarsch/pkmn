@@ -1,0 +1,10 @@
+Para regenerar los tiles
+
+python tools\tileset2gba.py
+resolución : 528x592
+
+para regenerear las colisoiones
+tools/behavior2c.py
+
+para generar la data de los amps
+   python img2map.py "..\assets\Pallet Town.bmp" --auto-crop --name pallet_town --preview ..\prev.png

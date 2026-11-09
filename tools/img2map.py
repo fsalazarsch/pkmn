@@ -53,10 +53,34 @@ def load_image(path, crop, scale):
         x, y, w, h = crop; im = im.crop((x, y, x + w, y + h))
     if scale > 1:                   # imagen ampliada N veces: toma el pixel central de cada bloque
         a = np.array(im); im = Image.fromarray(a[scale // 2::scale, scale // 2::scale])
-    if im.width % CELL or im.height % CELL:
-        die("La imagen mide %dx%d y debe ser múltiplo de 16. Usa --crop x,y,ancho,alto para recortar el marco."
-            % im.size)
     return np.array(im)
+
+
+def check_grid(arr):
+    h, w = arr.shape[:2]
+    if w % CELL or h % CELL:
+        die("La imagen mide %dx%d y debe ser múltiplo de 16. Usa --crop x,y,ancho,alto, "
+            "o prueba --auto-crop para que el script busque el desfase." % (w, h))
+
+
+def auto_crop(arr, G):
+    """Prueba todos los desfases posibles y se queda con el que más pixeles calza con la hoja de tiles."""
+    H, W = arr.shape[:2]
+    cols, rows = W // CELL, H // CELL
+    if cols == 0 or rows == 0: die("La imagen es más chica que una casilla de 16x16.")
+    pos = [(i, j) for j in range(rows) for i in range(cols)]
+    pos = pos[::max(1, len(pos) // 60)]                 # unas 60 casillas de muestra
+    best = None
+    for dy in range(H - rows * CELL + 1):
+        for dx in range(W - cols * CELL + 1):
+            score = 0
+            for i, j in pos:
+                c = arr[dy + j * CELL: dy + (j + 1) * CELL, dx + i * CELL: dx + (i + 1) * CELL]
+                c = c.reshape(CELL * CELL, 3).astype(np.int16)
+                score += int((np.abs(G - c).sum(2) == 0).sum(1).max())
+            if best is None or score > best[0]: best = (score, dx, dy)
+    ratio = best[0] / (len(pos) * CELL * CELL)
+    return best[1], best[2], cols * CELL, rows * CELL, ratio
 
 
 def match_cell(cell, gid, G, oid, O, M):
@@ -101,6 +125,7 @@ def main():
     ap.add_argument("--tileset", default=os.path.join(ROOT, "assets", "tiles.png"))
     ap.add_argument("--name", help="nombre de los símbolos (por defecto, el del archivo)")
     ap.add_argument("--crop", help="x,y,ancho,alto de la zona útil de la imagen")
+    ap.add_argument("--auto-crop", action="store_true", help="busca solo el desfase de la grilla de 16x16")
     ap.add_argument("--scale", type=int, default=1, help="si la imagen está ampliada N veces")
     ap.add_argument("--tol", type=float, default=4.0, help="error medio (0-255) sobre el cual se avisa")
     ap.add_argument("--preview", help="guarda un PNG con el resultado y las casillas dudosas en rojo")
@@ -114,6 +139,13 @@ def main():
 
     img = load_image(a.image, crop, a.scale)
     gid, G, oid, O, M, tiles = load_sheet(a.tileset)
+    if a.auto_crop:
+        x, y, w, h, ratio = auto_crop(img, G)
+        print("auto-crop: --crop %d,%d,%d,%d  (%.0f%% de los pixeles calzan con la hoja)" % (x, y, w, h, ratio * 100))
+        if ratio < 0.5:
+            print("  AVISO: calza poco; puede que la imagen tenga marco o piezas que no están en tiles.png")
+        img = img[y:y + h, x:x + w]
+    check_grid(img)
     H, W = img.shape[0] // CELL, img.shape[1] // CELL
     if W > 32: die("El mapa mide %d casillas de ancho y el máximo es 32." % W)
 
